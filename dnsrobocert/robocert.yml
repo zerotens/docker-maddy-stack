@@ -1,0 +1,16 @@
+draft: false
+acme:
+  email_account: postmaster@${DOMAIN}
+  staging: false
+profiles:
+  - name: hetzner_profile
+    provider: hetzner
+    provider_options:
+      auth_token: ${HETZNER_DNS_API_TOKEN}
+certificates:
+  - name: wildcard
+    domains:
+      - "*.${DOMAIN}"
+      - "${DOMAIN}"
+    profile: hetzner_profile
+    force_renew: false

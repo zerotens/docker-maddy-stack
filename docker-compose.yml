@@ -1,0 +1,88 @@
+version: '3'
+
+services:
+  unbound:
+    image: klutchell/unbound:latest
+    restart: always
+  dnsrobocert:
+    image: zerotens/dms-dnsrobocert:${DNSROBOCERT_VERSION_TAG}
+    restart: always
+    environment:
+      - "DOMAIN=${DOMAIN}"
+      - "HETZNER_DNS_API_TOKEN=${HETZNER_DNS_API_TOKEN}"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "certs:/etc/letsencrypt"
+  mta-sts:
+    image: zerotens/mta-sts:1.0
+    restart: always
+    environment:
+      - "STS_MODE=testing"
+      - "STS_MAX_AGE=3600"
+      - "STS_SERVERS=${MX_HOSTNAME}"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mta-sts.entrypoints=web-secure"
+      - "traefik.http.routers.mta-sts.tls=true"
+      - "traefik.http.routers.mta-sts.rule=Host(`mta-sts.${DOMAIN}`)"
+  rspamd:
+    image: zerotens/dms-rspamd:1.0
+    hostname: rspamd
+    environment:
+      - "RSPAMD_CONTROLLER_PASSWORD=${RSPAMD_PASSWORD}"
+      - "DNSSERVER=unbound"
+    volumes:
+      - rspamd:/var/lib/rspamd
+    depends_on:
+      - redis
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.rspamd.entrypoints=web-secure"
+      - "traefik.http.routers.rspamd.tls=true"
+      - "traefik.http.routers.rspamd.rule=Host(`rspamd.${DOMAIN}`)"
+      - "traefik.http.services.rspamd.loadbalancer.server.port=11334"
+  redis:
+    image: redis:alpine
+    command: [ "redis-server", "--appendonly", "yes" ]
+    volumes:
+      - redis:/data
+  maddy:
+    image: zerotens/dms-maddy:${MADDY_VERSION_TAG}
+    restart: always
+    environment:
+      - "MADDY_HOSTNAME=${MX_HOSTNAME}"
+      - "MADDY_DOMAIN=${DOMAIN}"
+    ports:
+      - "25:25"
+      - "143:143"
+      - "587:587"
+      - "993:993"
+    volumes:
+      - "maddy:/data"
+      - "certs:/certs"
+  traefik:
+    container_name: traefik
+    image: "zerotens/dms-traefik:${TRAEFIK_VERSION_TAG}"
+    restart: always
+    command:
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entryPoint.to=web-secure
+      - --entrypoints.web.http.redirections.entryPoint.scheme=https
+      - --entrypoints.web.http.redirections.entrypoint.permanent=true
+      - --entrypoints.web-secure.address=:443
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.file.directory=/etc/traefik/certs/
+      - --providers.file.watch=true
+    ports:
+      - "80:80"
+      - "8080:8080"
+      - "443:443"
+    volumes:
+      - "certs:/certs"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+volumes:
+  maddy:
+  certs:
+  rspamd:
+  redis:

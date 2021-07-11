@@ -1,0 +1,4 @@
+tls:
+  certificates:
+    - certFile: /certs/live/wildcard/fullchain.pem
+      keyFile: /certs/live/wildcard/privkey.pem

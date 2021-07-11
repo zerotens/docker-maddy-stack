@@ -1,0 +1,32 @@
+version: '3'
+
+services:
+  rspamd:
+    image: zerotens/dms-rspamd:1.0
+    build:
+      context: ./rspamd
+  dnsrobocert:
+    image: zerotens/dms-dnsrobocert:${DNSROBOCERT_VERSION_TAG}
+    build:
+      context: ./dnsrobocert
+      args:
+        TAG: ${DNSROBOCERT_VERSION_TAG}
+  mta-sts:
+    image: zerotens/mta-sts:1.0
+    build: https://github.com/zerotens/mta-sts-webserver.git
+  maddy-base:
+    image: zerotens/maddy-base:${MADDY_VERSION_TAG}
+    restart: always
+    build: https://github.com/foxcpp/maddy.git#${MADDY_VERSION_TAG}
+  maddy:
+    image: zerotens/dms-maddy:${MADDY_VERSION_TAG}
+    build:
+      context: ./maddy
+      args:
+        TAG: ${MADDY_VERSION_TAG}
+  traefik:
+    image: zerotens/dms-traefik:${TRAEFIK_VERSION_TAG}
+    build:
+      context: ./traefik
+      args:
+        TAG: ${TRAEFIK_VERSION_TAG}
